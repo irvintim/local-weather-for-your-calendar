@@ -1,11 +1,19 @@
 <?php
 // Variables used in this script:
-$appkey = ''; // Get a API Key at https://openweathermap.org/appid
-$city = $_GET['city'];
+$conf = parse_ini_file("weather-cal.ini");
+$unittype = array(
+	"F" => "imperial",
+	"C" => "metric"
+	);
+
+$appkey = $conf['appkey']; // Get a API Key at https://openweathermap.org/appid
+
+$city = $_GET['city'] ?: $conf['city'];
+$units = $unittype[ $_GET['unittype'] ?: $conf['unittype'] ]'
 $summary = 'Weather for your calendar — Vejnø';
 
 // Loading json
-$string = file_get_contents("http://api.openweathermap.org/data/2.5/forecast/daily?q=" . $city . "&units=metric&cnt=16&appid=" . $appkey);
+$string = file_get_contents("http://api.openweathermap.org/data/2.5/forecast/daily?q=" . $city . "&units=" . $unittype . "&cnt=16&appid=" . $appkey);
 $json = json_decode($string, true);
 //
 // Notes:
