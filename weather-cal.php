@@ -9,7 +9,7 @@ $unittype = array(
 $appkey = $conf['appkey']; // Get a API Key at https://openweathermap.org/appid
 
 $city = $_GET['city'] ?: $conf['city'];
-$units = $unittype[ $_GET['unittype'] ?: $conf['unittype'] ]'
+$units = $unittype[ $_GET['unittype'] ?: $conf['unittype'] ]';
 $summary = 'Weather for your calendar — Vejnø';
 
 // Loading json
