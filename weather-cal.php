@@ -1,4 +1,13 @@
 <?php
+// Configuration can be read from the ini file in the parent directory of the
+// script.  Format is:
+//
+// [weather-cal]
+// city = Paris
+// units = C
+// appkey = sdfksdjfklsdfasdf
+
+
 // Variables used in this script:
 $conf = parse_ini_file("../weather-cal.ini");
 $unittype = array(
