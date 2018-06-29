@@ -18,11 +18,15 @@ $unittype = array(
 $appkey = $conf['appkey']; // Get a API Key at https://openweathermap.org/appid
 
 $city = isset($_GET['city']) ? $_GET['city'] : $conf['city'];
-$units = $unittype[ isset($_GET['unittype']) ? $_GET['unittype'] : $conf['unittype'] ];
-$summary = 'Weather for your calendar — Vejnø';
+$units = isset($_GET['unittype']) ? $_GET['unittype'] : $conf['unittype'];
+if (!array_key_exists($units, $unittype)) {
+   die('Illegal unittype: ' . $units);
+}
+$summary = 'Weather for your calendar';
+$now = time();
 
 // Loading json
-if (!$string = file_get_contents("http://api.openweathermap.org/data/2.5/forecast/daily?q=" . $city . "&units=" . $units . "&cnt=16&appid=" . $appkey)) {
+if (!$string = file_get_contents("http://api.openweathermap.org/data/2.5/forecast/daily?q=" . $city . "&units=" . $unittype[$units] . "&cnt=16&appid=" . $appkey)) {
    die('Error getting weather data');
 }
 $json = json_decode($string, true);
@@ -85,6 +89,16 @@ CALSCALE:GREGORIAN
 //print_r($json['list']);
 foreach ($json['list'] as $key => $val) {
   //print_r($val);
+  if ($now > (int)$val['dt']) {
+	  continue;
+  }
+  if (is_executable("/usr/bin/uuid")) {
+	  exec("/usr/bin/uuid", $uid);
+  }
+  else {
+	  $uid[0] = dayToCal($val['dt']) . "@nettempo.com";
+  }
+
   switch ($val['weather'][0]['icon']) {
   	case '01d':
   		$icon = '☀️';
@@ -120,20 +134,22 @@ foreach ($json['list'] as $key => $val) {
 	?>
 
 BEGIN:VEVENT
-SUMMARY;LANGUAGE=en:<?= $icon ?> <?= round($val['temp']['day']); ?>°
+SUMMARY;LANGUAGE=en:<?= round($val['temp']['max']) . $units . "/" . round($val['temp']['min']) . $units . " " . $val['humidity'] . '% ' . $val['weather'][0]['main'] . '
+' ?>
 X-FUNAMBOL-ALLDAY:1
-CONTACT:Andreas Vejnø Andersen\, andreas@vejnoe.dk
-UID:<?= dayToCal($val['dt']) ?>@vejnoe.dk
+CONTACT:info@nettempo.com
+UID:<?= $uid[0] . '
+' ?>
 DTSTART;VALUE=DATE:<?= dayToCal($val['dt']) . '
 ' ?>
 LOCATION:<?= $city . '
 ' ?>
 X-MICROSOFT-CDO-ALLDAYEVENT:TRUE
-URL;VALUE=URI:http://www.vejnoe.dk
+URL;VALUE=URI:http://www.nettempo.com
 DTEND;VALUE=DATE:<?= nextDayToCal($val['dt']) . '
 ' ?>
 X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-DESCRIPTION;LANGUAGE=en:<?= $val['weather'][0]['main'] . ': ' . $val['weather'][0]['description'] . '
+DESCRIPTION;LANGUAGE=en:<?= $icon . ' ' . $val['weather'][0]['main'] . ': ' . $val['weather'][0]['description'] . '
 ' ?>
 END:VEVENT
 <?php
