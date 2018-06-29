@@ -11,29 +11,29 @@
 // Variables used in this script:
 $conf = parse_ini_file("../weather-cal.ini");
 $unittype = array(
-	"F" => "imperial",
-	"C" => "metric"
+	"F" => "us",
+	"C" => "si"
 	);
 
 $appkey = $conf['appkey']; // Get a API Key at https://openweathermap.org/appid
 
-$city = isset($_GET['city']) ? $_GET['city'] : $conf['city'];
+$long = isset($_GET['long']) ? $_GET['long'] : $conf['long'];
+$lat = isset($_GET['lat']) ? $_GET['lat'] : $conf['lat'];
 $units = isset($_GET['unittype']) ? $_GET['unittype'] : $conf['unittype'];
 if (!array_key_exists($units, $unittype)) {
    die('Illegal unittype: ' . $units);
 }
 $summary = 'Weather for your calendar';
-$now = time();
 
 // Loading json
-if (!$string = file_get_contents("http://api.openweathermap.org/data/2.5/forecast/daily?q=" . $city . "&units=" . $unittype[$units] . "&cnt=16&appid=" . $appkey)) {
+if (!$string = file_get_contents("https://api.darksky.net/forecast/" . $appkey. "/" . $lat . "," . $long . "?exclude=currently,minutely,hourly,flags")) {
    die('Error getting weather data');
 }
 $json = json_decode($string, true);
 //
 // Notes:
 //  - the UID should be unique to the event, so in this case I'm just using
-//    uniqid to create a uid, but you could do whatever you'd like.
+//    uuid
 //
 //  - iCal requires a date format of "yyyymmddThhiissZ". The "T" and "Z"
 //    characters are not placeholders, just plain ol' characters. The "T"
@@ -75,82 +75,77 @@ function nextDayToCal($timestamp) {
 function escapeString($string) {
   return preg_replace('/([\,;])/','\\\$1', $string);
 }
+
+date_default_timezone_set($json[timezone]);
 // 3. Echo out the ics file's contents
 ?>
 BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//vejnoe.dk//v0.1//EN
-X-WR-CALNAME:Weather for <?= $city . '
-' ?>
+X-WR-CALNAME:Weather for <?= $lat . "," . $long . '\n' ?>
 X-APPLE-CALENDAR-COLOR:#ffffff
 CALSCALE:GREGORIAN
 
 <?php
 //print_r($json['list']);
-foreach ($json['list'] as $key => $val) {
+foreach ($json['daily']['data'] as $key => $val) {
   //print_r($val);
-  if ($now > (int)$val['dt']) {
-	  continue;
-  }
   if (is_executable("/usr/bin/uuid")) {
 	  exec("/usr/bin/uuid", $uid);
   }
   else {
-	  $uid[0] = dayToCal($val['dt']) . "@nettempo.com";
+	  $uid[0] = dayToCal($val['time']) . "@nettempo.com";
   }
 
-  switch ($val['weather'][0]['icon']) {
-  	case '01d':
-  		$icon = '☀️';
+  switch ($val['icon']) {
+  	case 'clear-day':
+  		$desc = 'Sunny️';
   		break;
-  	case '02d':
-  		$icon = '🌤';
+  	case 'clear-night':
+  		$desc = 'Clear?';
   		break;
-  	case '03d':
-  		$icon = '☁️';
+  	case 'rain':
+  		$desc = 'Rain';
   		break;
-  	case '04d':
-  		$icon = '☁️☁️';
+  	case 'snow':
+  		$desc = 'Snow️';
   		break;
-  	case '09d':
-  		$icon = '🌧';
+  	case 'sleet':
+  		$desc = 'Sleet';
   		break;
-  	case '10d':
-  		$icon = '🌦';
+  	case 'wind':
+  		$desc = 'Wind';
   		break;
-  	case '11d':
-  		$icon = '⛈';
+  	case 'fog':
+  		$desc = 'Fog';
   		break;
-  	case '13d':
-  		$icon = '🌨';
+  	case 'cloudy':
+  		$desc = 'Cloudy';
   		break;
-  	case '50d':
-  		$icon = '🌫';
+  	case 'partly-cloudy-day';
+  		$desc = 'Partly Cloudy';
+  		break;
+  	case 'partly-cloudy-night';
+  		$desc = 'Partly Cloudy';
   		break;
   	default:
-  		$icon = '🤔';
+  		$desc = 'See Details';
   		break;
   }
 	?>
 
 BEGIN:VEVENT
-SUMMARY;LANGUAGE=en:<?= round($val['temp']['max']) . $units . "/" . round($val['temp']['min']) . $units . " " . $val['humidity'] . '% ' . $val['weather'][0]['main'] . '
-' ?>
+SUMMARY;LANGUAGE=en:<?= round($val['temperatureHigh']) . $units . "/" . round($val['temperatureLow']) . $units . " PoPrecip: " . round($val['precipProbability']*100) . "% RH:" . round($val['humidity']*100) . '%  ' . $desc . '\n' ?>
 X-FUNAMBOL-ALLDAY:1
 CONTACT:info@nettempo.com
-UID:<?= $uid[0] . '
-' ?>
-DTSTART;VALUE=DATE:<?= dayToCal($val['dt']) . '
-' ?>
-LOCATION:<?= $city . '
-' ?>
+UID:<?= $uid[0] . '\n' ?>
+DTSTART;VALUE=DATE:<?= dayToCal($val['dt']) . '\n' ?>
+LOCATION:<?= $lat . ',' . $long . '\n' ?>
 X-MICROSOFT-CDO-ALLDAYEVENT:TRUE
 URL;VALUE=URI:http://www.nettempo.com
-DTEND;VALUE=DATE:<?= nextDayToCal($val['dt']) . '
-' ?>
+DTEND;VALUE=DATE:<?= nextDayToCal($val['dt']) . '\n' ?>
 X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-DESCRIPTION;LANGUAGE=en:<?= $icon . ' ' . $val['weather'][0]['main'] . ': ' . $val['weather'][0]['description'] . '
-' ?>
+DESCRIPTION;LANGUAGE=en:<?= $val['summary'] . '\n' ?>
 END:VEVENT
 <?php
 	}
