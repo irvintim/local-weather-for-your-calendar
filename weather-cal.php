@@ -76,13 +76,14 @@ function escapeString($string) {
   return preg_replace('/([\,;])/','\\\$1', $string);
 }
 
-date_default_timezone_set($json[timezone]);
+date_default_timezone_set($json['timezone']);
 // 3. Echo out the ics file's contents
 ?>
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//vejnoe.dk//v0.1//EN
-X-WR-CALNAME:Weather for <?= $lat . "," . $long . '\n' ?>
+PRODID:-//nettempo.com//v0.1//EN
+X-WR-CALNAME:Weather for <?= $lat . "," . $long . '
+' ?>
 X-APPLE-CALENDAR-COLOR:#ffffff
 CALSCALE:GREGORIAN
 
@@ -90,11 +91,11 @@ CALSCALE:GREGORIAN
 //print_r($json['list']);
 foreach ($json['daily']['data'] as $key => $val) {
   //print_r($val);
-  if (is_executable("/usr/bin/uuid")) {
-	  exec("/usr/bin/uuid", $uid);
+  if (is_file("/proc/sys/kernel/random/uuid")) {
+	  $uid = trim(file_get_contents("/proc/sys/kernel/random/uuid"));
   }
   else {
-	  $uid[0] = dayToCal($val['time']) . "@nettempo.com";
+	  $uid = dayToCal($val['time']) . "@nettempo.com";
   }
 
   switch ($val['icon']) {
@@ -135,20 +136,58 @@ foreach ($json['daily']['data'] as $key => $val) {
 	?>
 
 BEGIN:VEVENT
-SUMMARY;LANGUAGE=en:<?= round($val['temperatureHigh']) . $units . "/" . round($val['temperatureLow']) . $units . " PoPrecip: " . round($val['precipProbability']*100) . "% RH:" . round($val['humidity']*100) . '%  ' . $desc . '\n' ?>
+<?= trim(chunk_split('SUMMARY;LANGUAGE=en:' . $desc . ' ' . round($val['temperatureHigh']) . $units . "/" . round($val['temperatureLow']) . $units . " Precip:" . round($val['precipProbability']*100) . "% RH:" . round($val['humidity']*100) . '%', 74, "\n ")) . "\n" ?>
 X-FUNAMBOL-ALLDAY:1
-CONTACT:info@nettempo.com
-UID:<?= $uid[0] . '\n' ?>
-DTSTART;VALUE=DATE:<?= dayToCal($val['dt']) . '\n' ?>
-LOCATION:<?= $lat . ',' . $long . '\n' ?>
+CONTACT:Powered by Dark Sky
+UID:<?= $uid . '
+' ?>
+DTSTART;VALUE=DATE:<?= dayToCal($val['time']) . '
+' ?>
+LOCATION:<?= $lat . ',' . $long . '
+' ?>
 X-MICROSOFT-CDO-ALLDAYEVENT:TRUE
-URL;VALUE=URI:http://www.nettempo.com
-DTEND;VALUE=DATE:<?= nextDayToCal($val['dt']) . '\n' ?>
+URL;VALUE=URI:https://darksky.net/poweredby/
+DTEND;VALUE=DATE:<?= nextDayToCal($val['time']) . '
+' ?>
 X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
-DESCRIPTION;LANGUAGE=en:<?= $val['summary'] . '\n' ?>
+<?= trim(chunk_split('DESCRIPTION;LANGUAGE=en:' . $val['summary'], 74, "\n ")) . "\n" ?>
 END:VEVENT
 <?php
 	}
+?>
+
+<?php
+//print_r($json['list']);
+if (isset($json['alerts']) ) {
+    foreach ($json['alerts'] as $key => $val) {
+        //print_r($val);
+        if (is_file("/proc/sys/kernel/random/uuid")) {
+            $uid = trim(file_get_contents("/proc/sys/kernel/random/uuid"));
+        }
+        else {
+            $uid = dayToCal($val['time']) . "@nettempo.com";
+        }
+
+        ?>
+
+BEGIN:VEVENT
+<?= trim(chunk_split('SUMMARY;LANGUAGE=en:' . $val['title'], 74, "\n ")) . "\n" ?>
+CONTACT:Powered by Dark Sky
+UID:<?= $uid . '
+' ?>
+DTSTART;VALUE=DATE:<?= dateToCal($val['time']) . '
+' ?>
+LOCATION:<?= $lat . ',' . $long . '
+' ?>
+URL;VALUE=URI:https://darksky.net/poweredby/
+DTEND;VALUE=DATE:<?= dateToCal($val['expires']) . '
+' ?>
+X-APPLE-TRAVEL-ADVISORY-BEHAVIOR:AUTOMATIC
+<?= trim(chunk_split('DESCRIPTION;LANGUAGE=en:' . trim(json_encode($val['description']), '"'), 65, "\n ")) . "\n" ?>
+END:VEVENT
+        <?php
+    }
+}
 ?>
 
 
